@@ -1,6 +1,6 @@
 import asyncio
 import discord
-from discord.ext import commands
+import discord.app_commands
 import html
 import os
 from google.cloud import texttospeech
@@ -8,14 +8,11 @@ from google.cloud import texttospeech
 import os
 from dotenv import load_dotenv
 
-
 load_dotenv()
 
 intents = discord.Intents.default()
-intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
-
-client = texttospeech.TextToSpeechClient()
+client = discord.Client(intents=intents)
+tree = discord.app_commands.CommandTree(client)
 
 
 def text_to_ssml(text):
@@ -41,23 +38,29 @@ def ssml_to_speech(ssml, file, language_code, gender):
     return file
 
 
-@bot.event
+@client.event
 async def on_ready():
     print("Bot is ready.")
+    await tree.sync()
 
 
-@bot.command()
-async def play(ctx):
+@tree.command(name="play", description="そうだねと同意してくれます。")
+async def play(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
+
     # ボイスチャンネルに接続
-    channel = ctx.author.voice.channel
-    voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+    voice = interaction.user.voice
+    target_channel = getattr(voice, "channel", None)
+    if voice is None or target_channel is None:
+        await interaction.followup.send("先にボイスチャンネルに入ってください。")
+        return
 
-    if voice_client is not None and voice_client.is_connected():
-        await ctx.send("既にボイスチャンネルに接続しています。")
+    if interaction.client.voice_clients:
+        await interaction.followup.send("既にボイスチャンネルに接続しています。")
         return
 
     # 音声ファイルの再生
-    voice_client = await channel.connect()
+    voice_client = await target_channel.connect()
     source = discord.FFmpegPCMAudio("./sounds/soudane.mp3", before_options="-vol 100")
 
     voice_client.play(source)
@@ -68,19 +71,23 @@ async def play(ctx):
 
     # ボイスチャンネルから切断
     await voice_client.disconnect()
+    await interaction.followup.send("Done")
 
 
-@bot.command()
-async def voice(ctx, text=None):
-    if text is None:
-        await ctx.send("引数に指定してね")
+@tree.command(name="voice", description="代わって発言してくれます。")
+@discord.app_commands.describe(text="Text to say.")
+async def voice(interaction: discord.Interaction, text: str):
+    await interaction.response.defer(ephemeral=True)
+
+    # ボイスチャンネルに接続
+    voice = interaction.user.voice
+    target_channel = getattr(voice, "channel", None)
+    if voice is None or target_channel is None:
+        await interaction.followup.send("先にボイスチャンネルに入ってください。")
         return
 
-    channel = ctx.author.voice.channel
-    voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
-
-    if voice_client is not None and voice_client.is_connected():
-        await ctx.send("既にボイスチャンネルに接続しています。")
+    if interaction.client.voice_clients:
+        await interaction.followup.send("既にボイスチャンネルに接続しています。")
         return
 
     voice_path = "./sounds/voice.mp3"
@@ -88,7 +95,7 @@ async def voice(ctx, text=None):
     file = ssml_to_speech(ssml, voice_path, "ja-JP", texttospeech.SsmlVoiceGender.MALE)
 
     # 音声ファイルの再生
-    voice_client = await channel.connect()
+    voice_client = await target_channel.connect()
     source = discord.FFmpegPCMAudio(voice_path)
 
     voice_client.play(source)
@@ -97,9 +104,10 @@ async def voice(ctx, text=None):
     while voice_client.is_playing():
         await asyncio.sleep(0.5)
 
+    os.remove(voice_path)
     # ボイスチャンネルから切断
     await voice_client.disconnect()
-    os.remove(voice_path)
+    await interaction.followup.send("Done")
 
 
-bot.run(os.environ.get("BOT_TOKEN"))
+client.run(os.environ.get("BOT_TOKEN"))
