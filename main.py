@@ -1,8 +1,10 @@
+from typing import Optional
 import asyncio
 import discord
 import discord.app_commands
 import html
 import os
+import datetime
 from google.cloud import texttospeech
 
 import os
@@ -13,6 +15,9 @@ load_dotenv()
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = discord.app_commands.CommandTree(client)
+
+# key: member_id, value: 入室時間
+member_voice_invite_time = {}
 
 
 def text_to_ssml(text):
@@ -42,6 +47,79 @@ def ssml_to_speech(ssml, file, language_code, gender):
 async def on_ready():
     print("Bot is ready.")
     await tree.sync()
+
+
+# TODO: channelの型付け(discord.guild.GuildChannelではエラーだった)
+async def notification_current_members(channel, state: discord.VoiceState):
+    filtered = filter(lambda m: not m.bot, state.channel.members)
+    current_member_names = list(map(lambda m: m.display_name, filtered))
+    display_member_text = " ".join(current_member_names)
+
+    if not len(current_member_names):
+        return
+
+    await channel.send(
+        f"""現在の参加者
+```
+{display_member_text}
+```
+"""
+    )
+
+
+@client.event
+async def on_voice_state_update(
+    member: discord.Member, before: discord.VoiceState, after: discord.VoiceState
+):
+    # ミュートの変更の場合は、対応しない。
+    if before.channel == after.channel:
+        return
+
+    # 通知メッセージを書き込むテキストチャンネル（チャンネルIDを指定）
+    botRoom = client.get_channel(int(os.environ.get("VOICE_NOTIFICATION_CHANNEL_ID")))
+
+    # 入退室を監視する対象のボイスチャンネル（チャンネルIDを指定）
+    announceChannelIds = [int(os.environ.get("VOICE_MONITOR_CHANNEL_ID"))]
+
+    # 入室通知
+    if (
+        after.channel is not None
+        and not member.bot
+        and after.channel.id in announceChannelIds
+    ):
+        member_voice_invite_time[member.id] = datetime.datetime.now()
+        await botRoom.send(f"""**{after.channel.name}**に、__{member.name}__が参加しました!""")
+        await notification_current_members(botRoom, after)
+    # 退室通知
+    if (
+        before.channel is not None
+        and not member.bot
+        and before.channel.id in announceChannelIds
+    ):
+        invite_time: Optional[datetime.datetime] = member_voice_invite_time.get(
+            member.id
+        )
+
+        if not invite_time:
+            await botRoom.send(
+                f"""**{before.channel.name}**から、__{member.name}__が抜けました!"""
+            )
+            await notification_current_members(botRoom, before)
+            return
+
+        stay_time: datetime.timedelta = datetime.datetime.now() - invite_time
+
+        # format stay_time
+        days = stay_time.days
+        hours = stay_time.seconds // 3600
+        minutes = (stay_time.seconds - (hours * 3600)) // 60
+        seconds = stay_time.seconds - (hours * 3600 + minutes * 60)
+        display_stay_time = f"""{days}日{hours}時間{minutes}分{seconds}秒"""
+
+        await botRoom.send(
+            f"""**{before.channel.name}**から、__{member.name}__が抜けました! 滞在時間: {display_stay_time}"""
+        )
+        await notification_current_members(botRoom, before)
 
 
 @tree.command(name="play", description="そうだねと同意してくれます。")
