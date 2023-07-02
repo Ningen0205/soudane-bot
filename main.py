@@ -1,10 +1,8 @@
-from typing import Optional
 import asyncio
 import discord
 import discord.app_commands
 import html
 import os
-import datetime
 from google.cloud import texttospeech
 
 import os
@@ -45,57 +43,6 @@ def ssml_to_speech(ssml, file, language_code, gender):
 async def on_ready():
     logging.info("Bot is ready.")
     await tree.sync()
-
-
-# TODO: channelの型付け(discord.guild.GuildChannelではエラーだった)
-async def notification_current_members(channel, state: discord.VoiceState):
-    filtered = filter(lambda m: not m.bot, state.channel.members)
-    current_member_names = list(map(lambda m: m.display_name, filtered))
-    display_member_text = " ".join(current_member_names)
-
-    if not len(current_member_names):
-        return
-
-    await channel.send(
-        f"""現在の参加者
-```
-{display_member_text}
-```
-"""
-    )
-
-
-@client.event
-async def on_voice_state_update(
-    member: discord.Member, before: discord.VoiceState, after: discord.VoiceState
-):
-    # ミュートの変更の場合は、対応しない。
-    if before.channel == after.channel:
-        return
-
-    # 通知メッセージを書き込むテキストチャンネル（チャンネルIDを指定）
-    botRoom = client.get_channel(int(os.environ.get("VOICE_NOTIFICATION_CHANNEL_ID")))
-
-    # 入退室を監視する対象のボイスチャンネル（チャンネルIDを指定）
-    announceChannelIds = [int(os.environ.get("VOICE_MONITOR_CHANNEL_ID"))]
-
-    # 入室通知
-    if (
-        after.channel is not None
-        and not member.bot
-        and after.channel.id in announceChannelIds
-    ):
-        await botRoom.send(f"""**{after.channel.name}**に、__{member.name}__が参加しました!""")
-        await notification_current_members(botRoom, after)
-    # 退室通知
-    if (
-        before.channel is not None
-        and not member.bot
-        and before.channel.id in announceChannelIds
-    ):
-        await botRoom.send(f"""**{before.channel.name}**から、__{member.name}__が抜けました!""")
-        await notification_current_members(botRoom, before)
-        return
 
 
 @tree.command(name="play", description="そうだねと同意してくれます。")
