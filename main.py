@@ -9,6 +9,7 @@ from google.cloud import texttospeech
 
 import os
 from dotenv import load_dotenv
+import logging
 
 load_dotenv()
 
@@ -45,7 +46,7 @@ def ssml_to_speech(ssml, file, language_code, gender):
 
 @client.event
 async def on_ready():
-    print("Bot is ready.")
+    logging.info("Bot is ready.")
     await tree.sync()
 
 
