@@ -17,9 +17,6 @@ intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = discord.app_commands.CommandTree(client)
 
-# key: member_id, value: 入室時間
-member_voice_invite_time = {}
-
 
 def text_to_ssml(text):
     escaped_lines = html.escape(text)
@@ -88,7 +85,6 @@ async def on_voice_state_update(
         and not member.bot
         and after.channel.id in announceChannelIds
     ):
-        member_voice_invite_time[member.id] = datetime.datetime.now()
         await botRoom.send(f"""**{after.channel.name}**に、__{member.name}__が参加しました!""")
         await notification_current_members(botRoom, after)
     # 退室通知
@@ -97,30 +93,9 @@ async def on_voice_state_update(
         and not member.bot
         and before.channel.id in announceChannelIds
     ):
-        invite_time: Optional[datetime.datetime] = member_voice_invite_time.get(
-            member.id
-        )
-
-        if not invite_time:
-            await botRoom.send(
-                f"""**{before.channel.name}**から、__{member.name}__が抜けました!"""
-            )
-            await notification_current_members(botRoom, before)
-            return
-
-        stay_time: datetime.timedelta = datetime.datetime.now() - invite_time
-
-        # format stay_time
-        days = stay_time.days
-        hours = stay_time.seconds // 3600
-        minutes = (stay_time.seconds - (hours * 3600)) // 60
-        seconds = stay_time.seconds - (hours * 3600 + minutes * 60)
-        display_stay_time = f"""{days}日{hours}時間{minutes}分{seconds}秒"""
-
-        await botRoom.send(
-            f"""**{before.channel.name}**から、__{member.name}__が抜けました! 滞在時間: {display_stay_time}"""
-        )
+        await botRoom.send(f"""**{before.channel.name}**から、__{member.name}__が抜けました!""")
         await notification_current_members(botRoom, before)
+        return
 
 
 @tree.command(name="play", description="そうだねと同意してくれます。")
