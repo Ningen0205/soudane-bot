@@ -110,5 +110,7 @@ async def voice(interaction: discord.Interaction, text: str):
     await voice_client.disconnect()
     await interaction.followup.send("Done")
 
+    await interaction.channel.send(f"{interaction.user.name}が「{text}」と命令しました。")
+
 
 client.run(os.environ.get("BOT_TOKEN"))
