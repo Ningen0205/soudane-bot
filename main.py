@@ -49,13 +49,7 @@ async def on_ready():
 async def play(interaction: discord.Interaction):
     await interaction.response.defer(ephemeral=True)
 
-    # ボイスチャンネルに接続
-    voice = interaction.user.voice
-    target_channel = getattr(voice, "channel", None)
-    if voice is None or target_channel is None:
-        await interaction.followup.send("先にボイスチャンネルに入ってください。")
-        return
-
+    target_channel = client.get_channel(int(os.environ.get("DEFAULT_VOICE_CHANNEL_ID")))
     if interaction.client.voice_clients:
         await interaction.followup.send("既にボイスチャンネルに接続しています。")
         return
@@ -80,13 +74,7 @@ async def play(interaction: discord.Interaction):
 async def voice(interaction: discord.Interaction, text: str):
     await interaction.response.defer(ephemeral=True)
 
-    # ボイスチャンネルに接続
-    voice = interaction.user.voice
-    target_channel = getattr(voice, "channel", None)
-    if voice is None or target_channel is None:
-        await interaction.followup.send("先にボイスチャンネルに入ってください。")
-        return
-
+    target_channel = client.get_channel(int(os.environ.get("DEFAULT_VOICE_CHANNEL_ID")))
     if interaction.client.voice_clients:
         await interaction.followup.send("既にボイスチャンネルに接続しています。")
         return
@@ -110,7 +98,10 @@ async def voice(interaction: discord.Interaction, text: str):
     await voice_client.disconnect()
     await interaction.followup.send("Done")
 
-    await interaction.channel.send(f"{interaction.user.name}が「{text}」と命令しました。")
+    notification_channel = client.get_channel(
+        int(os.environ.get("NOTIFICATION_CHANNEL_ID"))
+    )
+    await notification_channel.send(f"{interaction.user.name}が「{text}」と命令しました。")
 
 
 client.run(os.environ.get("BOT_TOKEN"))
