@@ -68,6 +68,13 @@ async def play(interaction: discord.Interaction):
     await voice_client.disconnect()
     await interaction.followup.send("Done")
 
+    logging.info(
+        "called soudane api.",
+        extra={
+            "user": {"id": interaction.user.id, "name": interaction.user.name},
+        },
+    )
+
 
 @tree.command(name="voice", description="代わって発言してくれます。")
 @discord.app_commands.describe(text="Text to say.")
@@ -102,6 +109,13 @@ async def voice(interaction: discord.Interaction, text: str):
         int(os.environ.get("NOTIFICATION_CHANNEL_ID"))
     )
     await notification_channel.send(f"{interaction.user.name}が「{text}」と命令しました。")
+    logging.info(
+        "called voice api.",
+        extra={
+            "user": {"id": interaction.user.id, "name": interaction.user.name},
+            "text": text,
+        },
+    )
 
 
 client.run(os.environ.get("BOT_TOKEN"))
