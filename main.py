@@ -1,3 +1,6 @@
+import random
+from typing import Optional
+from datetime import datetime, date
 import asyncio
 import discord
 import discord.app_commands
@@ -14,6 +17,42 @@ load_dotenv()
 intents = discord.Intents.default()
 client = discord.Client(intents=intents)
 tree = discord.app_commands.CommandTree(client)
+
+
+# 1日
+SOUDANE_THREADHOLD = 5
+# key が日付, valueが誰が読んだかの配列
+SOUNDANE_MEMORY_DB = {}
+
+
+class ThreadHoldException(Exception):
+    pass
+
+
+class SoudaneRepository:
+    SOUDANE_FILE_NAMES = [
+        "./sounds/soudane.mp3",
+        "./sounds/soudane_tiru_1.mp3"
+    ]
+    @classmethod
+    def get_soudane_file_name(cls):
+        return cls.SOUDANE_FILE_NAMES[random.randint(0, len(cls.SOUDANE_FILE_NAMES) - 1)]
+        
+
+    @classmethod
+    def get(cls, date_: date):
+        return SOUNDANE_MEMORY_DB.get(str(date_))
+
+    @classmethod
+    def save(cls, date_: date, user: discord.User):
+        key = str(date_)
+        called_list = SOUNDANE_MEMORY_DB.get(str(date_))  # type: Optional[list] 
+        if called_list is None:
+            SOUNDANE_MEMORY_DB[key] = [user.display_name]
+        elif len(called_list) < SOUDANE_THREADHOLD:
+            SOUNDANE_MEMORY_DB[key].append(user.display_name)
+        else:
+            raise ThreadHoldException()
 
 
 def text_to_ssml(text):
@@ -54,9 +93,28 @@ async def play(interaction: discord.Interaction):
         await interaction.followup.send("既にボイスチャンネルに接続しています。")
         return
 
+    try:
+        SoudaneRepository.save(date_=datetime.now().date(), user=interaction.user)
+    except ThreadHoldException:
+        called_members = SoudaneRepository.get(date_=datetime.now().date())
+        display_text = "\n".join(called_members)
+        notification_channel = client.get_channel(
+            int(os.environ.get("NOTIFICATION_CHANNEL_ID"))
+        )
+        await interaction.followup.send("Done")
+        await notification_channel.send(
+            f"""本日の呼び出し回数を超過しました。
+呼び出し情報:
+```
+{display_text}
+```                                 
+"""
+        )
+        return
+
     # 音声ファイルの再生
     voice_client = await target_channel.connect()
-    source = discord.FFmpegPCMAudio("./sounds/soudane.mp3", before_options="-vol 100")
+    source = discord.FFmpegPCMAudio(SoudaneRepository.get_soudane_file_name(), before_options="-vol 100")
 
     voice_client.play(source)
 
