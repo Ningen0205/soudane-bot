@@ -48,6 +48,7 @@ class SoudaneRepository:
         key = str(date_)
         called_list = SOUNDANE_MEMORY_DB.get(str(date_))  # type: Optional[list] 
         if called_list is None:
+            SOUNDANE_MEMORY_DB = {}
             SOUNDANE_MEMORY_DB[key] = [user.display_name]
         elif len(called_list) < SOUDANE_THREADHOLD:
             SOUNDANE_MEMORY_DB[key].append(user.display_name)

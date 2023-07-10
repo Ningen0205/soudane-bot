@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: soudane_bot
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - 5432:5432
+    networks:
+      - soudane
+  app:
+    build: .
+    environment:
+      db_host: db
+      db: soudane_bot
+      db_user: postgres
+      db_password: password
+    networks:
+      - soudane
+    depends_on:
+      - db
+networks:
+  soudane:
+    external: true
