@@ -94,24 +94,24 @@ async def play(interaction: discord.Interaction):
         await interaction.followup.send("既にボイスチャンネルに接続しています。")
         return
 
-    try:
-        SoudaneRepository.save(date_=datetime.now().date(), user=interaction.user)
-    except ThreadHoldException:
-        called_members = SoudaneRepository.get(date_=datetime.now().date())
-        display_text = "\n".join(called_members)
-        notification_channel = client.get_channel(
-            int(os.environ.get("NOTIFICATION_CHANNEL_ID"))
-        )
-        await interaction.followup.send("Done")
-        await notification_channel.send(
-            f"""本日の呼び出し回数を超過しました。
-呼び出し情報:
-```
-{display_text}
-```                                 
-"""
-        )
-        return
+#     try:
+#         SoudaneRepository.save(date_=datetime.now().date(), user=interaction.user)
+#     except ThreadHoldException:
+#         called_members = SoudaneRepository.get(date_=datetime.now().date())
+#         display_text = "\n".join(called_members)
+#         notification_channel = client.get_channel(
+#             int(os.environ.get("NOTIFICATION_CHANNEL_ID"))
+#         )
+#         await interaction.followup.send("Done")
+#         await notification_channel.send(
+#             f"""本日の呼び出し回数を超過しました。
+# 呼び出し情報:
+# ```
+# {display_text}
+# ```                                 
+# """
+#         )
+#         return
 
     # 音声ファイルの再生
     voice_client = await target_channel.connect()
