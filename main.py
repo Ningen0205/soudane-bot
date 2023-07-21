@@ -136,8 +136,8 @@ async def play(interaction: discord.Interaction):
 
 
 @tree.command(name="voice", description="代わって発言してくれます。")
-@discord.app_commands.describe(text="Text to say.")
-async def voice(interaction: discord.Interaction, text: str):
+@discord.app_commands.describe(text="Text to say.", locale="日本語: ja-JP, English: en-US, 既定: ja-JP")
+async def voice(interaction: discord.Interaction, text: str, locale: str="ja-JP"):
     await interaction.response.defer(ephemeral=True)
 
     target_channel = client.get_channel(int(os.environ.get("DEFAULT_VOICE_CHANNEL_ID")))
@@ -147,7 +147,7 @@ async def voice(interaction: discord.Interaction, text: str):
 
     voice_path = "./sounds/voice.mp3"
     ssml = text_to_ssml(text=text)
-    file = ssml_to_speech(ssml, voice_path, "ja-JP", texttospeech.SsmlVoiceGender.MALE)
+    file = ssml_to_speech(ssml, voice_path, locale, texttospeech.SsmlVoiceGender.MALE)
 
     # 音声ファイルの再生
     voice_client = await target_channel.connect()
